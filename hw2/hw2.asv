@@ -183,10 +183,10 @@ title('№4 Сигнальное созвездие после RRC фильтр�
 % title('№4 Сигнальное созвездие после RRC и SNR = 30');
 
 filtsign_rx = Filtration(filtsign_noise, sqimpuls, nsamp, 0);
-
-figure
-scatter(real(filtsign_rx), imag(filtsign_rx))
-title('№4 Сигнальное созвездие RX');
+% 
+% figure
+% scatter(real(filtsign_rx), imag(filtsign_rx))
+% title('№4 Сигнальное созвездие RX');
 
 % n = 1:2000;
 % figure
@@ -195,10 +195,6 @@ title('№4 Сигнальное созвездие RX');
 
 signal_downsample = filtsign_rx(1:4:end);
 
-figure
-scatter(real(signal_downsample), imag(signal_downsample))
-title('№4 Сигнальное созвездие RX');
-
 n = 1:500;
 figure
 plot(n, abs(sign), n, abs(signal_downsample))
@@ -206,15 +202,17 @@ title('№4 Сравнение сигнала RX & TX');
 
 % Появилась задержка в 20 отсчетов = длина фильтра
 
-n = 1 : 500 - 20;
-figure
-plot(n, abs(sign(1:end-20)), n, abs(signal_downsample(21:end)))
-title('№4 Без задержки');
+% n = 1 : 500 - 20;
+% figure
+% plot(n, abs(sign(1:end-20)), n, abs(signal_downsample(21:end)))
+% title('№4 Без задержки');
 
 % При 30 db сигналы на rx и tx полностью совпали
 
 bits_TX = demapping(sign(1:end-20), Constellation, false, 30);
 bits_RX = demapping(signal_downsample(21:end), Constellation, false, 30);
+
+ans = Error_check(bits_TX, bits_RX)
 
 %% ====================================================================
 %> Задание 5
@@ -225,11 +223,12 @@ bandwidth = length(filtsign) * (rolloff + 1) / nsamp;
 MER = zeros(length(101));
 BER = zeros(length(101));
 
+
 it = 1;
 for ii = 0:100
     bits = randi([0 1], 1, 1000); % генерация бит
 
-    sign = mapping(bits, Constellation); % QPSK 500 символов 
+    sign = mapping(bits, 'QPSK'); % QPSK 500 символов 
 
     filtsign_tx = Filtration(sign, sqimpuls, nsamp, 1);
     
@@ -248,7 +247,7 @@ for ii = 0:100
     if mod(ii, 2) == 0
         inv_offset = conj(offset);
     else
-        inv_offset = conj(offset) .* exp(pi*1i.*t/4);
+        inv_offset = conj(offset) .* exp(-pi*1i.*t/4);
     end
 
     signal_baseband = filtsign_rx .* inv_offset;
@@ -259,18 +258,19 @@ for ii = 0:100
 
     scatter(real(signal_downsample(21:end)), imag(signal_downsample(21:end)))
 
-    MER(it) = MER_my_func(signal_downsample(21:end), Constellation);
+    MER(it) = MER_my_func(signal_downsample(21:end), 'QPSK');
 
     bits_TX = demapping(sign(1:end-20), Constellation, false, 30);
     bits_RX = demapping(signal_downsample(21:end), Constellation, false, 30);
 
+    
     it = it + 1;
+
+
 end
 
 persents = 0:100;
-
-figure;
-plot(persents, MER)
+plot(persents, MER(1:end))
 title('MER(Freq offset)')
 ylabel('MER, dB')
 xlabel('frequency offset, % of bandwidth')
