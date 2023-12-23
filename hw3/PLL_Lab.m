@@ -3,16 +3,16 @@ close; clear; clc;
 
 %% config
 
-Freq_Offset = 0.01; % normalised frequency
+Freq_Offset = 0.05; % normalised frequency
 SNR = 20; % dB
 
 %% Transmitter
 % config
-Amount_of_Frame = 300;
+Amount_of_Frame = 500;
 Length_Data_IQ = 1440;
 
 % Start of frame
-SOF = [1 0 0 1 1 1 0 1 0 1 0 1 0 1 1 0 0 1 0 0]; 
+SOF = [1 0 0 1 1 1 0 1 0 1 0 1 0 1 1 0 0 1 0 0];
 IQ_SOF = mapping(SOF, "BPSK"); % Use this sequence on the Rx as a Pilot-Signal
 
 % QAM | mapper
@@ -35,8 +35,8 @@ Channel_IQ = Channel_IQ.*exp(-1j.*2.*(1:Length_Data_IQ+length(IQ_SOF)).*pi*Freq_
 % =========================================================================
 % Loop filter preset
 % -------------------------------------------------------------------------
-Xi = 2;           % detector gainDampingFactor
-BnTs = 0.1;        % Normalized loop bandwidth (Ts = 1 for this problem)
+Xi = 2;             % detector gainDampingFactor
+BnTs = 0.01;         % Normalized loop bandwidth (Ts = 1 for this problem)
 Kd = 2*pi;          % Phase (not change)
 K0 = 1;             % not change
 % =========================================================================
@@ -52,8 +52,6 @@ D = 2;
 [RX_IQ_DM, DM_estimate] = DM(Channel_IQ, D, Kp, Ki);
 
 freq_offset_est = mean(DM_estimate);
-
-RX_IQ_DM = Channel_IQ.*exp(1j.*2.*(1:length(Channel_IQ)).*pi*freq_offset_est);
 
 setup_time = 0;
 for itter_time = 20:length(DM_estimate)
@@ -92,7 +90,6 @@ xlabel('number of symb')
 ylabel('Result of DM Phase detector')
 hold off
 
-
 %% Analysis
 % =========================================================================
 % TASK
@@ -113,21 +110,27 @@ for Freq_Offset_it = -0.5 : 0.01 : 0.5
         exp(-1j.*2.*(1:Length_Data_IQ+length(IQ_SOF)).*pi*Freq_Offset_it);
 
     [RX_IQ_DM, DM_estimate] = DM(Channel_IQ, D, Kp, Ki);
+
+    for itter_time = 20:length(DM_estimate)
+    rmse_itt = rmse(DM_estimate(itter_time-19:itter_time), Freq_Offset);
+        if rmse_itt < 0.0001
+            setup_time = itter_time;
+            break;
+        end
+    end
     
-    rmse_it = rmse(DM_estimate, Freq_Offset_it);
+    rmse_it = rmse(DM_estimate(itter_time:end), Freq_Offset_it);
     rmse_dm_arr = [rmse_dm_arr, rmse_it];
 end
 
 figure;
-hold on
+semilogy(-0.5 : 0.01 : 0.5, rmse_dm_arr)
 title('RMSE(freq offset), D&M, D=2')
 xlabel('freq offset, \delta f')
-ylabel('Root Mean Square Estimation')
-plot(-0.5 : 0.01 : 0.5, rmse_dm_arr)
-hold off
-
+ylabel('Root Mean Square Estimation, log2')
+%%
 rmse_lr_arr = [];
-for Freq_Offset_it = -0.06 : 0.001 : 0.06
+for Freq_Offset_it = -0.5 : 0.01 : 0.5
     Tx_Bits = randi([0 1], 1, Amount_of_Frame*Length_Data_IQ*2);
     TX_IQ_Data = mapping(Tx_Bits, "QPSK");
     IQ_TX_Frame = FrameStruct(TX_IQ_Data, IQ_SOF, Amount_of_Frame);
@@ -143,12 +146,10 @@ for Freq_Offset_it = -0.06 : 0.001 : 0.06
 end
 
 figure;
-hold on
 title('RMSE(freq offset), L&R, N=19')
 xlabel('freq offset, \delta f')
-ylabel('Root Mean Square Estimation')
-plot(-0.06 : 0.001 : 0.06, rmse_lr_arr(1:end))
-hold off
+ylabel('Root Mean Square Estimation, log2')
+semilogy(-0.5 : 0.01 : 0.5, (rmse_lr_arr(1:end)))
 
 %% Only pilots
 Freq_Offset = 0.01; % normalised frequency
